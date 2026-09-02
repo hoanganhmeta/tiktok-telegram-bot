@@ -96,7 +96,7 @@ curl -X POST \
 
 **Ví dụ:**
 ```
-/tt truccphuongg07
+/tt ongg07
 /tt @cristiano
 /tt tiktok
 ```
@@ -106,8 +106,8 @@ curl -X POST \
 ```
 👤 Thông tin TikTok
 
-🆔 Username: truccphuongg07
-📛 Tên hiển thị: Trucc Phuongg♡
+🆔 Username: ongg07
+📛 Tên hiển thị: ♡
 🌍 Khu vực: Không rõ
 ✅ Xác minh: Không
 📝 Bio: [Bio của người dùng]
