@@ -1,0 +1,9 @@
+{
+  "name": "tiktok-telegram-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot for fetching TikTok user information",
+  "main": "netlify/functions/telegram-bot.js",
+  "dependencies": {
+    "axios": "^1.6.0"
+  }
+}
