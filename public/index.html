@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Bot Webhook Setup</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="url"] {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="url"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .info-box {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            font-size: 13px;
+            color: #555;
+        }
+
+        .info-box strong {
+            color: #333;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-setup {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-setup:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-check {
+            background: #f0f0f0;
+            color: #333;
+            border: 2px solid #e0e0e0;
+        }
+
+        .btn-check:hover {
+            background: #e8e8e8;
+            border-color: #999;
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .result.success {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            color: #155724;
+            display: block;
+        }
+
+        .result.error {
+            background: #f8d7da;
+            border: 2px solid #f5c6cb;
+            color: #721c24;
+            display: block;
+        }
+
+        .result.info {
+            background: #d1ecf1;
+            border: 2px solid #bee5eb;
+            color: #0c5460;
+            display: block;
+        }
+
+        .result h4 {
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .result p {
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            color: #667eea;
+            font-size: 14px;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .steps {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 30px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .steps h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .step-item {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+            font-size: 13px;
+            color: #555;
+        }
+
+        .step-number {
+            background: #667eea;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-weight: bold;
+        }
+
+        .copy-btn {
+            background: #e0e0e0;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+
+        .copy-btn:hover {
+            background: #d0d0d0;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 22px;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Telegram Bot Webhook</h1>
+            <p>Setup webhook cho TikTok Telegram Bot</p>
+        </div>
+
+        <div class="info-box">
+            <strong>📌 Hướng dẫn:</strong> Nhập Telegram Bot Token và Webhook URL, sau đó nhấn "Setup Webhook" để kích hoạt bot.
+        </div>
+
+        <form id="webhookForm">
+            <div class="form-group">
+                <label for="token">🔑 Telegram Bot Token</label>
+                <input 
+                    type="text" 
+                    id="token" 
+                    placeholder="123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefgh"
+                    required
+                >
+                <small style="color: #999; display: block; margin-top: 5px;">
+                    💡 Lấy từ @BotFather trên Telegram
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="webhook">🔗 Webhook URL</label>
+                <input 
+                    type="url" 
+                    id="webhook" 
+                    placeholder="https://your-site.netlify.app/.netlify/functions/telegram-bot"
+                    required
+                >
+                <small style="color: #999; display: block; margin-top: 5px;">
+                    💡 URL từ Netlify deployment của bạn
+                </small>
+            </div>
+
+            <div class="button-group">
+                <button type="button" class="btn-setup" onclick="setupWebhook()">
+                    ⚙️ Setup Webhook
+                </button>
+                <button type="button" class="btn-check" onclick="checkWebhook()">
+                    ✅ Kiểm tra Status
+                </button>
+            </div>
+        </form>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Đang xử lý...</p>
+        </div>
+
+        <div class="result" id="result"></div>
+
+        <div class="steps">
+            <h3>📋 Các bước Setup:</h3>
+            <div class="step-item">
+                <div class="step-number">1</div>
+                <div>
+                    <strong>Tạo Bot:</strong> Mở Telegram, tìm @BotFather, gửi /newbot
+                </div>
+            </div>
+            <div class="step-item">
+                <div class="step-number">2</div>
+                <div>
+                    <strong>Lưu Token:</strong> Copy token từ BotFather và dán vào ô "Telegram Bot Token"
+                </div>
+            </div>
+            <div class="step-item">
+                <div class="step-number">3</div>
+                <div>
+                    <strong>Triển khai Netlify:</strong> Deploy code trên Netlify và lấy URL
+                </div>
+            </div>
+            <div class="step-item">
+                <div class="step-number">4</div>
+                <div>
+                    <strong>Setup Webhook:</strong> Nhập Token và URL, rồi nhấn "Setup Webhook"
+                </div>
+            </div>
+            <div class="step-item">
+                <div class="step-number">5</div>
+                <div>
+                    <strong>Test Bot:</strong> Mở Telegram và gửi /start hoặc /tt username
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function setupWebhook() {
+            const token = document.getElementById('token').value.trim();
+            const webhookUrl = document.getElementById('webhook').value.trim();
+            const resultDiv = document.getElementById('result');
+            const loading = document.getElementById('loading');
+
+            if (!token || !webhookUrl) {
+                showResult('error', '❌ Lỗi', 'Vui lòng nhập đầy đủ Token và Webhook URL!');
+                return;
+            }
+
+            loading.style.display = 'block';
+            resultDiv.style.display = 'none';
+
+            try {
+                const response = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        url: webhookUrl,
+                        allowed_updates: ['message', 'callback_query']
+                    })
+                });
+
+                const data = await response.json();
+                loading.style.display = 'none';
+
+                if (data.ok) {
+                    showResult('success', '✅ Thành công!', 
+                        `Webhook đã được setup thành công!<br><br>
+                        <strong>Webhook URL:</strong> ${webhookUrl}<br>
+                        <strong>Trạng thái:</strong> Hoạt động<br><br>
+                        Bot của bạn giờ đã sẵn sàng! Hãy mở Telegram và gửi /start để test.`
+                    );
+                } else {
+                    showResult('error', '❌ Lỗi từ Telegram', 
+                        `${data.description || 'Có lỗi xảy ra'}<br><br>
+                        <small>Kiểm tra lại Token và URL có đúng không?</small>`
+                    );
+                }
+            } catch (error) {
+                loading.style.display = 'none';
+                showResult('error', '❌ Lỗi kết nối', 
+                    `${error.message}<br><br>
+                    <small>Kiểm tra lại internet connection!</small>`
+                );
+            }
+        }
+
+        async function checkWebhook() {
+            const token = document.getElementById('token').value.trim();
+            const resultDiv = document.getElementById('result');
+            const loading = document.getElementById('loading');
+
+            if (!token) {
+                showResult('error', '❌ Lỗi', 'Vui lòng nhập Token!');
+                return;
+            }
+
+            loading.style.display = 'block';
+            resultDiv.style.display = 'none';
+
+            try {
+                const response = await fetch(`https://api.telegram.org/bot${token}/getWebhookInfo`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+                loading.style.display = 'none';
+
+                if (data.ok) {
+                    const info = data.result;
+                    if (info.url) {
+                        showResult('info', '✅ Webhook đang hoạt động', 
+                            `<strong>URL:</strong> ${info.url}<br>
+                            <strong>Pending updates:</strong> ${info.pending_update_count || 0}<br>
+                            <strong>Last error date:</strong> ${info.last_error_date ? new Date(info.last_error_date * 1000).toLocaleString('vi-VN') : 'Không có'}<br>
+                            ${info.last_error_message ? `<strong>Last error:</strong> ${info.last_error_message}` : ''}`
+                        );
+                    } else {
+                        showResult('info', 'ℹ️ Webhook chưa được setup', 
+                            'Bot chưa có webhook. Nhấn "Setup Webhook" để kích hoạt!'
+                        );
+                    }
+                } else {
+                    showResult('error', '❌ Lỗi', data.description || 'Không thể lấy thông tin webhook');
+                }
+            } catch (error) {
+                loading.style.display = 'none';
+                showResult('error', '❌ Lỗi kết nối', error.message);
+            }
+        }
+
+        function showResult(type, title, message) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = `result ${type}`;
+            resultDiv.innerHTML = `<h4>${title}</h4><p>${message}</p>`;
+            resultDiv.style.display = 'block';
+            resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        // Auto-focus on first input
+        document.getElementById('token').focus();
+    </script>
+</body>
+</html>
