@@ -1,15 +1,12 @@
 import json
 import logging
-from telegram import Update, ParseMode
-from telegram.ext import Dispatcher, MessageHandler, CommandHandler, Filters
-from telegram.error import TelegramError
+from telegram import Bot, Update
 import requests
 import os
 from urllib.parse import quote
 
 # Set up logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 # Get environment variables
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
@@ -55,43 +52,73 @@ def get_tiktok_user_info(username):
         return None
 
 
-def start(update, context):
-    """Start command"""
-    message = """👋 Xin chào! Đây là bot lấy thông tin TikTok.
+def handler(event, context):
+    """Netlify function handler for Telegram webhook"""
+    try:
+        # Parse request body
+        body = json.loads(event.get('body', '{}'))
+        
+        if not body:
+            return {
+                'statusCode': 200,
+                'body': json.dumps({'ok': True})
+            }
+        
+        # Initialize bot
+        bot = Bot(token=TELEGRAM_TOKEN)
+        
+        # Get message
+        message = body.get('message', {})
+        chat_id = message.get('chat', {}).get('id')
+        text = message.get('text', '').strip()
+        
+        if not chat_id or not text:
+            return {
+                'statusCode': 200,
+                'body': json.dumps({'ok': True})
+            }
+        
+        # Handle /start command
+        if text == '/start':
+            response_text = """👋 Xin chào! Đây là bot lấy thông tin TikTok.
 
 📝 Cách sử dụng:
 /tt <username> - Lấy thông tin người dùng TikTok
 
-Ví dụ: /tt truccphuongg07"""
-    
-    update.message.reply_text(message)
-
-
-def handle_tt_command(update, context):
-    """Handle /tt command"""
-    if not context.args:
-        update.message.reply_text("❌ Vui lòng nhập username!\n\nCách sử dụng: /tt <username>")
-        return
-    
-    username = context.args[0].replace('@', '')
-    
-    # Send waiting message
-    wait_msg = update.message.reply_text("⏳ Đang lấy thông tin...")
-    
-    try:
-        user_info = get_tiktok_user_info(username)
-        
-        if not user_info:
-            update.message.reply_text("❌ Không tìm thấy người dùng! Vui lòng kiểm tra lại username.")
-            wait_msg.delete()
-            return
-        
-        # Format response
-        bio = user_info['signature'] if user_info['signature'] else "Không có"
-        region = user_info['region'] if user_info['region'] else "Không rõ"
-        verified = "✅ Có" if user_info['verified'] else "❌ Không"
-        
-        response_text = f"""👤 Thông tin TikTok
+Ví dụ: /tt cristiano"""
+            bot.send_message(chat_id=chat_id, text=response_text)
+            
+        # Handle /tt command
+        elif text.startswith('/tt '):
+            username = text.replace('/tt ', '').replace('@', '').strip()
+            
+            if not username:
+                bot.send_message(chat_id=chat_id, text="❌ Vui lòng nhập username!\n\nCách sử dụng: /tt <username>")
+                return {
+                    'statusCode': 200,
+                    'body': json.dumps({'ok': True})
+                }
+            
+            # Send waiting message
+            wait_msg = bot.send_message(chat_id=chat_id, text="⏳ Đang lấy thông tin...")
+            
+            try:
+                user_info = get_tiktok_user_info(username)
+                
+                if not user_info:
+                    bot.send_message(chat_id=chat_id, text="❌ Không tìm thấy người dùng! Vui lòng kiểm tra lại username.")
+                    bot.delete_message(chat_id=chat_id, message_id=wait_msg.message_id)
+                    return {
+                        'statusCode': 200,
+                        'body': json.dumps({'ok': True})
+                    }
+                
+                # Format response
+                bio = user_info['signature'] if user_info['signature'] else "Không có"
+                region = user_info['region'] if user_info['region'] else "Không rõ"
+                verified = "✅ Có" if user_info['verified'] else "❌ Không"
+                
+                response_text = f"""👤 Thông tin TikTok
 
 🆔 Username: {user_info['username']}
 📛 Tên hiển thị: {user_info['nickname']}
@@ -106,56 +133,33 @@ def handle_tt_command(update, context):
 👤 Đang theo dõi: {user_info['following_count']:,}
 ❤️ Lượt thích: {user_info['heart_count']:,}
 🎬 Số video: {user_info['video_count']}"""
+                
+                # Delete waiting message
+                try:
+                    bot.delete_message(chat_id=chat_id, message_id=wait_msg.message_id)
+                except:
+                    pass
+                
+                # Send info with avatar if available
+                if user_info['avatar']:
+                    try:
+                        bot.send_photo(chat_id=chat_id, photo=user_info['avatar'], caption=response_text)
+                    except:
+                        bot.send_message(chat_id=chat_id, text=response_text)
+                else:
+                    bot.send_message(chat_id=chat_id, text=response_text)
+                    
+            except Exception as e:
+                logger.error(f"Error: {str(e)}")
+                try:
+                    bot.delete_message(chat_id=chat_id, message_id=wait_msg.message_id)
+                except:
+                    pass
+                bot.send_message(chat_id=chat_id, text=f"❌ Lỗi: {str(e)}")
         
-        # Delete waiting message
-        wait_msg.delete()
-        
-        # Send info with avatar if available
-        if user_info['avatar']:
-            try:
-                update.message.reply_photo(
-                    photo=user_info['avatar'],
-                    caption=response_text,
-                    parse_mode=ParseMode.HTML
-                )
-            except:
-                update.message.reply_text(response_text, parse_mode=ParseMode.HTML)
+        # Handle other messages
         else:
-            update.message.reply_text(response_text, parse_mode=ParseMode.HTML)
-            
-    except Exception as e:
-        logger.error(f"Error: {str(e)}")
-        wait_msg.delete()
-        update.message.reply_text(f"❌ Lỗi: {str(e)}")
-
-
-def handle_message(update, context):
-    """Handle other messages"""
-    update.message.reply_text("💡 Sử dụng /tt <username> để lấy thông tin TikTok\n\nVí dụ: /tt cristiano")
-
-
-def setup_dispatcher():
-    """Setup command and message handlers"""
-    dispatcher.add_handler(CommandHandler('start', start))
-    dispatcher.add_handler(CommandHandler('tt', handle_tt_command))
-    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
-
-
-def handler(event, context):
-    """Netlify function handler"""
-    try:
-        body = json.loads(event.get('body', '{}'))
-        
-        # Setup dispatcher only once
-        if not dispatcher.handlers:
-            setup_dispatcher()
-        
-        # Create update object
-        update = Update.de_json(body, None)
-        
-        if update:
-            # Process update
-            dispatcher.process_update(update)
+            bot.send_message(chat_id=chat_id, text="💡 Sử dụng /tt <username> để lấy thông tin TikTok\n\nVí dụ: /tt cristiano")
         
         return {
             'statusCode': 200,
