@@ -2,21 +2,48 @@ const axios = require('axios');
 
 exports.handler = async (event, context) => {
   try {
-    const body = JSON.parse(event.body || '{}');
+    console.log('Event received:', JSON.stringify(event));
     
-    if (!body || !body.message) {
+    // Parse request body
+    let body;
+    if (typeof event.body === 'string') {
+      body = JSON.parse(event.body || '{}');
+    } else {
+      body = event.body || {};
+    }
+    
+    console.log('Parsed body:', JSON.stringify(body));
+    
+    // Get TELEGRAM_TOKEN from environment
+    const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
+    console.log('Token exists:', !!TELEGRAM_TOKEN);
+    
+    if (!TELEGRAM_TOKEN) {
+      console.error('TELEGRAM_TOKEN not set');
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: 'TELEGRAM_TOKEN not set' })
+      };
+    }
+
+    // Extract message data
+    const message = body.message;
+    if (!message) {
+      console.log('No message in body');
       return {
         statusCode: 200,
         body: JSON.stringify({ ok: true })
       };
     }
 
-    const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
-    const message = body.message;
     const chatId = message.chat?.id;
     const text = (message.text || '').trim();
 
+    console.log('Chat ID:', chatId);
+    console.log('Message text:', text);
+
     if (!chatId || !text) {
+      console.log('Missing chatId or text');
       return {
         statusCode: 200,
         body: JSON.stringify({ ok: true })
@@ -27,6 +54,7 @@ exports.handler = async (event, context) => {
 
     // Handle /start command
     if (text === '/start') {
+      console.log('Processing /start command');
       const responseText = `👋 Xin chào! Đây là bot lấy thông tin TikTok.
 
 📝 Cách sử dụng:
@@ -34,10 +62,15 @@ exports.handler = async (event, context) => {
 
 Ví dụ: /tt cristiano`;
 
-      await axios.post(`${botAPI}/sendMessage`, {
-        chat_id: chatId,
-        text: responseText
-      });
+      try {
+        const response = await axios.post(`${botAPI}/sendMessage`, {
+          chat_id: chatId,
+          text: responseText
+        });
+        console.log('Message sent successfully');
+      } catch (err) {
+        console.error('Error sending message:', err.message);
+      }
 
       return {
         statusCode: 200,
@@ -47,6 +80,7 @@ Ví dụ: /tt cristiano`;
 
     // Handle /tt command
     if (text.startsWith('/tt ')) {
+      console.log('Processing /tt command');
       const username = text.replace('/tt ', '').replace('@', '').trim();
 
       if (!username) {
@@ -61,10 +95,16 @@ Ví dụ: /tt cristiano`;
       }
 
       // Send waiting message
-      const waitMsg = await axios.post(`${botAPI}/sendMessage`, {
-        chat_id: chatId,
-        text: '⏳ Đang lấy thông tin...'
-      });
+      let waitMsg;
+      try {
+        const waitResponse = await axios.post(`${botAPI}/sendMessage`, {
+          chat_id: chatId,
+          text: '⏳ Đang lấy thông tin...'
+        });
+        waitMsg = waitResponse.data.result;
+      } catch (err) {
+        console.error('Error sending wait message:', err.message);
+      }
 
       try {
         // Fetch TikTok info
@@ -91,7 +131,6 @@ Ví dụ: /tt cristiano`;
 🌍 Khu vực: ${region}
 ✅ Xác minh: ${verified}
 📝 Bio: ${bio}
-🔗 BioLink: Không có
 
 📊 Thống kê
 
@@ -101,13 +140,15 @@ Ví dụ: /tt cristiano`;
 🎬 Số video: ${stats.videoCount || 0}`;
 
           // Delete waiting message
-          try {
-            await axios.post(`${botAPI}/deleteMessage`, {
-              chat_id: chatId,
-              message_id: waitMsg.data.result.message_id
-            });
-          } catch (e) {
-            // Ignore delete errors
+          if (waitMsg) {
+            try {
+              await axios.post(`${botAPI}/deleteMessage`, {
+                chat_id: chatId,
+                message_id: waitMsg.message_id
+              });
+            } catch (e) {
+              console.log('Could not delete wait message');
+            }
           }
 
           // Send info
@@ -119,6 +160,7 @@ Ví dụ: /tt cristiano`;
                 caption: responseText
               });
             } catch (e) {
+              console.log('Photo send failed, trying text');
               await axios.post(`${botAPI}/sendMessage`, {
                 chat_id: chatId,
                 text: responseText
@@ -136,30 +178,34 @@ Ví dụ: /tt cristiano`;
             text: '❌ Không tìm thấy người dùng! Vui lòng kiểm tra lại username.'
           });
 
-          try {
-            await axios.post(`${botAPI}/deleteMessage`, {
-              chat_id: chatId,
-              message_id: waitMsg.data.result.message_id
-            });
-          } catch (e) {
-            // Ignore
+          if (waitMsg) {
+            try {
+              await axios.post(`${botAPI}/deleteMessage`, {
+                chat_id: chatId,
+                message_id: waitMsg.message_id
+              });
+            } catch (e) {
+              console.log('Could not delete wait message');
+            }
           }
         }
       } catch (error) {
-        console.error('Error:', error.message);
+        console.error('Error fetching TikTok:', error.message);
 
         await axios.post(`${botAPI}/sendMessage`, {
           chat_id: chatId,
           text: `❌ Lỗi: ${error.message}`
         });
 
-        try {
-          await axios.post(`${botAPI}/deleteMessage`, {
-            chat_id: chatId,
-            message_id: waitMsg.data.result.message_id
-          });
-        } catch (e) {
-          // Ignore
+        if (waitMsg) {
+          try {
+            await axios.post(`${botAPI}/deleteMessage`, {
+              chat_id: chatId,
+              message_id: waitMsg.message_id
+            });
+          } catch (e) {
+            console.log('Could not delete wait message');
+          }
         }
       }
 
@@ -170,6 +216,7 @@ Ví dụ: /tt cristiano`;
     }
 
     // Handle other messages
+    console.log('Processing regular message');
     await axios.post(`${botAPI}/sendMessage`, {
       chat_id: chatId,
       text: '💡 Sử dụng /tt <username> để lấy thông tin TikTok\n\nVí dụ: /tt cristiano'
@@ -182,6 +229,7 @@ Ví dụ: /tt cristiano`;
 
   } catch (error) {
     console.error('Error in handler:', error.message);
+    console.error('Error details:', error);
     return {
       statusCode: 500,
       body: JSON.stringify({ ok: false, error: error.message })
